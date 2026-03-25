@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="24" fill="#1B5E20"/>
+  <text x="256" y="180" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="48" font-weight="bold">🌲 Waldlehrpfad</text>
+  <text x="256" y="250" text-anchor="middle" fill="#C8E6C9" font-family="Arial, sans-serif" font-size="28">AR Station 1</text>
+  <line x1="100" y1="280" x2="412" y2="280" stroke="#4CAF50" stroke-width="2"/>
+  <text x="256" y="320" text-anchor="middle" fill="#E8F5E9" font-family="Arial, sans-serif" font-size="22">Die Eiche kann bis zu</text>
+  <text x="256" y="355" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="36" font-weight="bold">800 Jahre</text>
+  <text x="256" y="395" text-anchor="middle" fill="#E8F5E9" font-family="Arial, sans-serif" font-size="22">alt werden!</text>
+  <text x="256" y="460" text-anchor="middle" fill="#81C784" font-family="Arial, sans-serif" font-size="18">🔍 Halte die Kamera auf den Marker</text>
+</svg>
