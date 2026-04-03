@@ -1,0 +1,74 @@
+<!-- Samsung Internet Browser Warning -->
+@if (showBrowserWarning()) {
+  <div class="browser-warning">
+    ⚠️ Samsung Internet wird nicht optimal unterstützt. Bitte verwende <strong>Google Chrome</strong> für die beste AR-Erfahrung.
+  </div>
+}
+
+<!-- Loading State -->
+@if (loading()) {
+  <div class="loading-overlay">
+    <p>Kamera wird initialisiert…</p>
+  </div>
+}
+
+<!-- Error State -->
+@if (error(); as err) {
+  <div class="error-overlay">
+    <p>{{ err }}</p>
+    <button (click)="ngAfterViewInit()">Erneut versuchen</button>
+  </div>
+}
+
+<!-- Camera Picker (manual fallback for Samsung multi-cam) -->
+@if (cameraReady() && videoDevices().length > 1) {
+  <div class="camera-picker">
+    <label for="cam-select">📷 Kamera:</label>
+    <select id="cam-select" (change)="switchCamera($any($event.target).value)">
+      @for (dev of videoDevices(); track dev.deviceId) {
+        <option [value]="dev.deviceId" [selected]="dev.deviceId === selectedDeviceId">
+          {{ dev.label }}
+        </option>
+      }
+    </select>
+  </div>
+}
+
+<!-- AR Scene: only rendered when camera is ready -->
+@if (cameraReady()) {
+  <a-scene
+    arjs="sourceType: webcam;
+          sourceWidth: 1280;
+          sourceHeight: 960;
+          displayWidth: 1280;
+          displayHeight: 960;
+          debugUIEnabled: false;
+          trackingMethod: best;"
+    renderer="antialias: true; alpha: true;"
+    vr-mode-ui="enabled: false"
+  >
+    <!-- Assets -->
+    <a-assets>
+      <img id="overlay-img" src="overlays/info-overlay.svg" crossorigin="anonymous" />
+    </a-assets>
+
+    <a-marker preset="hiro"
+      smooth="true"
+      smoothCount="5"
+      smoothTolerance="0.1"
+      smoothThreshold="2"
+    >
+      <a-image
+        src="#overlay-img"
+        rotation="-75 0 0"
+        position="0 0.0 0"
+        width="2"
+        height="2"
+        opacity="0.95"
+      ></a-image>
+    </a-marker>
+
+    <!-- Camera entity (required by AR.js) -->
+    <a-entity camera></a-entity>
+  </a-scene>
+}

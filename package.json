@@ -7,6 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
+    ,
+    "deploy:ghpages": "node deploy-ghpages.js"
   },
   "prettier": {
     "printWidth": 100,
@@ -38,6 +40,7 @@
     "@angular/compiler-cli": "^21.0.0",
     "jsdom": "^27.1.0",
     "typescript": "~5.9.2",
+    "angular-cli-ghpages": "^1.0.7",
     "vitest": "^4.0.8"
   }
 }
