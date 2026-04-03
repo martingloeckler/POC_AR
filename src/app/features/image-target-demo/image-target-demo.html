@@ -1,0 +1,78 @@
+@if (showBrowserWarning()) {
+  <div class="browser-warning">
+    ⚠️ Samsung Internet wird nicht optimal unterstützt. Bitte verwende <strong>Google Chrome</strong>.
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading-overlay">
+    <p>Image-Target wird initialisiert…</p>
+  </div>
+}
+
+@if (error(); as err) {
+  <div class="error-overlay">
+    <p>{{ err }}</p>
+    <button (click)="ngAfterViewInit()">Erneut versuchen</button>
+  </div>
+}
+
+<!-- Camera Picker (manual fallback for Samsung multi-cam) -->
+@if (sceneReady() && videoDevices().length > 1) {
+  <div class="camera-picker">
+    <label for="cam-select">📷 Kamera:</label>
+    <select id="cam-select" (change)="switchCamera($any($event.target).value)">
+      @for (dev of videoDevices(); track dev.deviceId) {
+        <option [value]="dev.deviceId" [selected]="dev.deviceId === selectedDeviceId">
+          {{ dev.label }}
+        </option>
+      }
+    </select>
+  </div>
+}
+
+@if (sceneReady()) {
+  <div class="status-chip" [class.detected]="targetDetected()">
+    {{ targetDetected() ? 'Kuckuck erkannt ✅' : 'Suche Kuckuck-Target…' }}
+  </div>
+
+  <audio id="kuckuck-audio" src="sounds/kuckuck.mp3" preload="auto"></audio>
+
+  <a-scene
+    arjs="sourceType: webcam;
+          sourceWidth: 1280;
+          sourceHeight: 960;
+          displayWidth: 1280;
+          displayHeight: 960;
+          debugUIEnabled: true;
+          trackingMethod: best;"
+    vr-mode-ui="enabled: false"
+    renderer="antialias: true; alpha: true;"
+  >
+    <a-assets>
+      <img id="overlay-img" src="overlays/info-overlay.svg" crossorigin="anonymous" />
+    </a-assets>
+
+    <a-nft
+      id="kuckuck-nft"
+      type="nft"
+      url="imagetargets/Kuckuck"
+      emitevents="true"
+      smooth="true"
+      smoothCount="20"
+      smoothTolerance="0.005"
+      smoothThreshold="2"
+    >
+      <a-image
+        src="#overlay-img"
+        rotation="-90 0 0"
+        position="0 10 -50"
+        width="140"
+        height="140"
+        opacity="0.95"
+      ></a-image>
+    </a-nft>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+}

@@ -1,0 +1,67 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #0d1b0e;
+  color: #e8f5e9;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.home {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.3rem;
+  }
+
+  > p {
+    color: #81c784;
+    margin-bottom: 2rem;
+  }
+}
+
+.demo-list {
+  h2 {
+    font-size: 1.1rem;
+    color: #4caf50;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.demo-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: #1b2e1c;
+  border: 1px solid #2e7d32;
+  border-radius: 12px;
+  color: #e8f5e9;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: #2e4a2f;
+    border-color: #66bb6a;
+  }
+
+  .demo-icon {
+    font-size: 2rem;
+  }
+
+  strong {
+    display: block;
+    font-size: 1.05rem;
+    margin-bottom: 0.2rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #a5d6a7;
+  }
+}
