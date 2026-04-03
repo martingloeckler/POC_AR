@@ -36,7 +36,7 @@
     {{ targetDetected() ? 'Kuckuck erkannt ✅' : 'Suche Kuckuck-Target…' }}
   </div>
 
-  <audio id="kuckuck-audio" src="sounds/kuckuck.mp3" preload="auto"></audio>
+  <audio id="kuckuck-audio" [src]="audioUrl" preload="auto"></audio>
 
   <a-scene
     arjs="sourceType: webcam;
@@ -50,13 +50,13 @@
     renderer="antialias: true; alpha: true;"
   >
     <a-assets>
-      <img id="overlay-img" src="overlays/info-overlay.svg" crossorigin="anonymous" />
+      <img id="overlay-img" [attr.src]="overlayUrl" crossorigin="anonymous" />
     </a-assets>
 
     <a-nft
       id="kuckuck-nft"
       type="nft"
-      url="imagetargets/Kuckuck"
+      [attr.url]="nftUrl"
       emitevents="true"
       smooth="true"
       smoothCount="20"

@@ -7,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { CameraService } from '../../shared/services/camera.service';
 
 @Component({
@@ -19,6 +20,7 @@ import { CameraService } from '../../shared/services/camera.service';
 })
 export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
   private readonly cameraService = inject(CameraService);
+  private readonly document = inject(DOCUMENT);
 
   private originalGetUserMedia: typeof navigator.mediaDevices.getUserMedia | null = null;
   private matrixCheckInterval: number | null = null;
@@ -29,6 +31,10 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
   protected readonly sceneReady = signal(false);
   protected readonly targetDetected = signal(false);
   protected readonly videoDevices = signal<{ deviceId: string; label: string }[]>([]);
+
+  protected readonly overlayUrl = this.resolveAssetUrl('overlays/info-overlay.svg');
+  protected readonly audioUrl = this.resolveAssetUrl('sounds/kuckuck.mp3');
+  protected readonly nftUrl = this.resolveAssetUrl('imagetargets/Kuckuck');
 
   protected selectedDeviceId: string | undefined;
 
@@ -50,6 +56,8 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
       if (this.selectedDeviceId) {
         this.patchGetUserMedia(this.selectedDeviceId);
       }
+
+      console.log('[AR-01] Resolved NFT URL:', this.nftUrl);
 
       this.sceneReady.set(true);
 
@@ -303,5 +311,10 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
       stream?.getTracks().forEach(t => t.stop());
       v.srcObject = null;
     });
+  }
+
+  private resolveAssetUrl(path: string): string {
+    const normalizedPath = path.replace(/^\/+/, '');
+    return new URL(normalizedPath, this.document.baseURI).toString();
   }
 }
