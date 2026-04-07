@@ -16,4 +16,16 @@ export const routes: Routes = [
         m => m.ImageTargetDemoComponent,
       ),
   },
+  {
+    path: 'image-target-demo-8thwall',
+    loadComponent: () =>
+      import('./features/eighth-wall-demo/eighth-wall-demo').then(
+        m => m.EighthWallDemoComponent,
+      ),
+  },
+  {
+    path: '8th-wall-demo',
+    pathMatch: 'full',
+    redirectTo: 'image-target-demo-8thwall',
+  },
 ];

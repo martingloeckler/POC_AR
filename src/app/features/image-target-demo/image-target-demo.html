@@ -40,14 +40,15 @@
 
   <a-scene
     arjs="sourceType: webcam;
-          sourceWidth: 1280;
-          sourceHeight: 960;
-          displayWidth: 1280;
-          displayHeight: 960;
-          debugUIEnabled: true;
-          trackingMethod: best;"
+          sourceWidth: 640;
+          sourceHeight: 480;
+          displayWidth: 640;
+          displayHeight: 480;
+          debugUIEnabled: false;
+          trackingMethod: best;
+          maxDetectionRate: 60;"
     vr-mode-ui="enabled: false"
-    renderer="antialias: true; alpha: true;"
+    renderer="antialias: false; alpha: true; logarithmicDepthBuffer: true;"
   >
     <a-assets>
       <img id="overlay-img" [attr.src]="overlayUrl" crossorigin="anonymous" />
@@ -59,9 +60,10 @@
       [attr.url]="nftUrl"
       emitevents="true"
       smooth="true"
-      smoothCount="20"
-      smoothTolerance="0.005"
-      smoothThreshold="2"
+      smoothCount="5"
+      smoothTolerance="0.01"
+      smoothThreshold="5"
+      workers="1"
     >
       <a-image
         src="#overlay-img"

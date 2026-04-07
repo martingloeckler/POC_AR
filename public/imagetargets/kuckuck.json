@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/kuckuck_luminance.png",
+  "metadata": null,
+  "name": "kuckuck",
+  "type": "PLANAR",
+  "properties": {
+    "left": 128,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": true,
+    "originalWidth": 1024,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "kuckuck_original.png",
+    "croppedImage": "kuckuck_cropped.png",
+    "thumbnailImage": "kuckuck_thumbnail.png",
+    "luminanceImage": "kuckuck_luminance.png"
+  },
+  "created": 1775583890382,
+  "updated": 1775583890382
+}

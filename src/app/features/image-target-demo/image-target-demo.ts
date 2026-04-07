@@ -109,7 +109,7 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
     if (this.matrixCheckInterval) {
       clearInterval(this.matrixCheckInterval);
     }
-    
+
     this.destroyScene();
     this.restoreGetUserMedia();
   }
@@ -134,7 +134,7 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
       observer.observe(document.body, {
         childList: true,
         subtree: true,
-        attributes: true
+        attributes: true,
       });
 
       // Safety timeout after 5 seconds
@@ -161,11 +161,11 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
 
     console.log('[AR-01] Binding events to NFT element:', nft.tagName);
 
-    // Handler für verschiedene Event-Namen
+    // Handler fuer verschiedene Event-Namen
     const onTargetFound = () => {
-      console.log('[AR-01] ✅ Target Kuckuck FOUND!');
+      console.log('[AR-01] Target Kuckuck FOUND!');
       this.targetDetected.set(true);
-      
+
       if (audio) {
         console.log('[AR-01] Playing audio...');
         audio.currentTime = 0;
@@ -176,9 +176,9 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
     };
 
     const onTargetLost = () => {
-      console.log('[AR-01] ❌ Target Kuckuck LOST');
+      console.log('[AR-01] Target Kuckuck LOST');
       this.targetDetected.set(false);
-      
+
       if (audio) {
         audio.pause();
       }
@@ -196,16 +196,21 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
       scene.addEventListener('markerLost', onTargetLost);
       scene.addEventListener('targetFound', onTargetFound);
       scene.addEventListener('targetLost', onTargetLost);
-      
+
       // Spezielle AR.js Events
       (scene as any).addEventListener('ar-camera-init', () => {
         console.log('[AR-01] AR camera initialized');
+        this.optimizeActiveCameraTrack();
       });
+
+      // Fallback in case the init event is missed on some browsers.
+      setTimeout(() => {
+        this.optimizeActiveCameraTrack();
+      }, 1200);
     }
 
-    // Debugging: Hook ins ARController wenn vorhanden
-    this.setupARDebugHooks(audio);
-    
+    // Keep the event path lean; excessive hooks can add jitter on low-end devices.
+
     console.log('[AR-01] Listening for: markerFound, markerLost, targetFound, targetLost');
   }
 
@@ -214,11 +219,11 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
     if ((window as any).ARController) {
       console.log('[AR-01] ARController found, setting up debug hooks');
       const origOnDetection = (window as any).ARController.prototype.onDetection;
-      
+
       if (origOnDetection) {
         (window as any).ARController.prototype.onDetection = function(detections: any) {
           if (detections && detections.length > 0) {
-            console.log('[AR-01] 🎯 AR.js detection callback fired!', detections);
+            console.log('[AR-01] AR.js detection callback fired!', detections);
           }
           return origOnDetection.call(this, detections);
         };
@@ -230,26 +235,26 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
       console.log('[AR-01] THREEx.ArToolkitContext available for hooks');
     }
 
-    // **NEUE Strategie: Monitor Matrix-Änderungen auf dem a-nft Element**
+    // Neue Strategie: Monitor Matrix-Aenderungen auf dem a-nft Element
     const nft = document.getElementById('kuckuck-nft');
     if (nft) {
       let lastMatrix = nft.getAttribute('matrix');
-      
-      // Prüfe regelmäßig auf Matrix-Änderungen (Markierungserkennung)
+
+      // Pruefe regelmaessig auf Matrix-Aenderungen (Markierungserkennung)
       this.matrixCheckInterval = window.setInterval(() => {
         const currentMatrix = nft.getAttribute('matrix');
-        
+
         if (currentMatrix && currentMatrix !== lastMatrix) {
-          console.log('[AR-01] 🎯 MATRIX CHANGED! (Marker erkannt)', { 
-            old: lastMatrix, 
-            new: currentMatrix 
+          console.log('[AR-01] MATRIX CHANGED! (Marker erkannt)', {
+            old: lastMatrix,
+            new: currentMatrix,
           });
-          
+
           // Trigger "found" event
           if (!lastMatrix) {
-            console.log('[AR-01] ✅ Target Kuckuck FOUND (via matrix)!');
+            console.log('[AR-01] Target Kuckuck FOUND (via matrix)!');
             this.targetDetected.set(true);
-            
+
             if (audio) {
               audio.currentTime = 0;
               audio.play().catch((err) => {
@@ -257,17 +262,17 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
               });
             }
           }
-          
+
           lastMatrix = currentMatrix;
         } else if (!currentMatrix && lastMatrix) {
           // Matrix wurde entfernt = Marker verloren
-          console.log('[AR-01] ❌ Target Kuckuck LOST (matrix removed)!');
+          console.log('[AR-01] Target Kuckuck LOST (matrix removed)!');
           this.targetDetected.set(false);
           if (audio) audio.pause();
           lastMatrix = null;
         }
       }, 100);
-      
+
       console.log('[AR-01] Matrix monitoring started');
     }
   }
@@ -283,13 +288,60 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
         ...constraints,
         video: {
           deviceId: { exact: forcedDeviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 960 },
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30, max: 30 },
         },
       };
       console.log('[AR-01] Patched getUserMedia constraints:', patched);
       return original(patched);
     };
+  }
+
+  private async optimizeActiveCameraTrack(): Promise<void> {
+    try {
+      const video = document.querySelector('video') as HTMLVideoElement | null;
+      const stream = video?.srcObject as MediaStream | null;
+      const track = stream?.getVideoTracks()?.[0];
+
+      if (!track || typeof track.applyConstraints !== 'function') {
+        return;
+      }
+
+      const getCaps = (track as any).getCapabilities;
+      if (typeof getCaps !== 'function') {
+        return;
+      }
+
+      const caps = getCaps.call(track) as Record<string, any>;
+      const advanced: Record<string, unknown> = {};
+
+      if (Array.isArray(caps['focusMode']) && caps['focusMode'].includes('continuous')) {
+        advanced['focusMode'] = 'continuous';
+      }
+      if (Array.isArray(caps['exposureMode']) && caps['exposureMode'].includes('continuous')) {
+        advanced['exposureMode'] = 'continuous';
+      }
+      if (
+        Array.isArray(caps['whiteBalanceMode']) &&
+        caps['whiteBalanceMode'].includes('continuous')
+      ) {
+        advanced['whiteBalanceMode'] = 'continuous';
+      }
+
+      if (Object.keys(advanced).length === 0) {
+        return;
+      }
+
+      await track.applyConstraints({
+        advanced: [advanced as MediaTrackConstraintSet],
+      });
+
+      console.log('[AR-01] Applied camera track optimizations:', advanced);
+    } catch (err) {
+      console.warn('[AR-01] Camera track optimization skipped:', err);
+    }
   }
 
   private restoreGetUserMedia(): void {

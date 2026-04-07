@@ -1,0 +1,59 @@
+@if (showBrowserWarning()) {
+  <div class="browser-warning">
+    ⚠️ Samsung Internet ist bei Web-AR haeufig instabil. Bitte verwende nach Moeglichkeit
+    <strong>Google Chrome</strong>.
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading-overlay">
+    <p>8th-Wall Image-Target wird initialisiert…</p>
+  </div>
+}
+
+@if (error(); as err) {
+  <div class="error-overlay">
+    <p>{{ err }}</p>
+    <button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+}
+
+@if (runtimeReady()) {
+  <div class="status-chip" [class.detected]="targetDetected()">
+    {{ targetDetected() ? 'Kuckuck erkannt ✅' : 'Suche Kuckuck-Target…' }}
+  </div>
+
+  <button type="button" class="audio-enable" (click)="unlockAudio()">
+    Audio aktivieren
+  </button>
+}
+
+<audio id="kuckuck-audio" [src]="audioUrl" preload="auto"></audio>
+
+@if (runtimeReady()) {
+  <a-scene
+    class="x8-runtime-root"
+    xrconfig="cameraDirection: back"
+    xrweb
+    xrextras-loading
+    xrextras-runtime-error
+    renderer="colorManagement: true; physicallyCorrectLights: true;"
+  >
+    <a-assets>
+      <img id="overlay-img" [attr.src]="overlayUrl" crossorigin="anonymous" />
+    </a-assets>
+
+    <a-entity id="kuckuck-target" xrextras-named-image-target="name: kuckuck">
+      <a-image
+        src="#overlay-img"
+        rotation="-90 0 0"
+        position="0 0 0"
+        width="1.4"
+        height="1.4"
+        opacity="0.95"
+      ></a-image>
+    </a-entity>
+
+    <a-camera position="0 0 0"></a-camera>
+  </a-scene>
+}
