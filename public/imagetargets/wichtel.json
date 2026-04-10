@@ -1,0 +1,15 @@
+{
+  "imagePath": "images/Wichtel.png",
+  "metadata": null,
+  "name": "wichtel",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 1024,
+    "height": 1024,
+    "isRotated": false,
+    "originalWidth": 1024,
+    "originalHeight": 1024
+  }
+}

@@ -1,0 +1,73 @@
+@if (showBrowserWarning()) {
+  <div class="browser-warning">
+    ⚠️ Samsung Internet ist bei Web-AR haeufig instabil. Bitte verwende nach Moeglichkeit
+    <strong>Google Chrome</strong>.
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading-overlay">
+    <p>Wichtel-Demo wird initialisiert…</p>
+  </div>
+}
+
+@if (error(); as err) {
+  <div class="error-overlay">
+    <p>{{ err }}</p>
+    <button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+}
+
+@if (runtimeReady()) {
+  <div class="status-chip" [class.detected]="targetDetected()">
+    @if (celebrationBusy()) {
+      Wichtel jubelt gerade 🎉
+    } @else {
+      {{ targetDetected() ? 'Wichtel erkannt ✅' : 'Suche Wichtel-Target…' }}
+    }
+  </div>
+
+  <button type="button" class="audio-enable" (click)="unlockAudio()">
+    Audio aktivieren
+  </button>
+}
+
+<audio id="wichtel-audio" [src]="wichtelAudioUrl" preload="auto"></audio>
+
+@if (directCameraFallbackActive()) {
+  <div class="direct-camera-fallback">
+    <video id="direct-camera-video" autoplay muted playsinline></video>
+    @if (directCameraFallbackReason(); as reason) {
+      <div class="direct-camera-fallback-hint">{{ reason }}</div>
+    }
+  </div>
+}
+
+@if (sceneMounted()) {
+<a-scene
+  id="x8-scene"
+  class="x8-runtime-root"
+  xrextras-runtime-error
+  [attr.xrconfig]="xrconfigValue()"
+  [attr.xrweb]="xrwebConfig()"
+  renderer="colorManagement: true"
+>
+  <xrextras-named-image-target id="wichtel-target" name="wichtel"></xrextras-named-image-target>
+
+  <a-camera position="0 0 0">
+    <a-entity
+      id="wichtel-celebration-root"
+      position="0 -0.2 -2.2"
+      [attr.visible]="celebrationVisible()"
+    >
+      <a-entity
+        id="wichtel-model"
+        [attr.gltf-model]="wichtelModelUrl"
+        position="0 -0.35 0"
+        rotation="0 0 0"
+        scale="0.6 0.6 0.6"
+      ></a-entity>
+    </a-entity>
+  </a-camera>
+</a-scene>
+}

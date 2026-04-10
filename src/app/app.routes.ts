@@ -24,6 +24,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'wichtel-animated-demo',
+    loadComponent: () =>
+      import('./features/wichtel-animated-demo/wichtel-animated-demo').then(
+        m => m.WichtelAnimatedDemoComponent,
+      ),
+  },
+  {
     path: '8th-wall-demo',
     pathMatch: 'full',
     redirectTo: 'image-target-demo-8thwall',
