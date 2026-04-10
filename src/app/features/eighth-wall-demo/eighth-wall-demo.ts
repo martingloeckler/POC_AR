@@ -35,6 +35,7 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
   private xrRunObserved = false;
   private xrRunInstrumented = false;
   private xrDiagnosticsLogged = new Set<string>();
+  private audioPrimed = false;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -69,13 +70,21 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
   }
 
   protected async unlockAudio(): Promise<void> {
+    if (this.audioPrimed) {
+      return;
+    }
+
     const audio = this.document.getElementById('kuckuck-audio') as HTMLAudioElement | null;
     if (!audio) return;
 
     try {
+      audio.muted = false;
+      audio.volume = 1;
       await audio.play();
       audio.pause();
       audio.currentTime = 0;
+      this.audioPrimed = true;
+      this.logXrDiagnostic('audio-unlocked', 'Audio unlocked via user gesture.');
     } catch (err) {
       console.warn('[8th-wall] Audio unlock failed:', err);
     }
@@ -136,9 +145,9 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
       this.sceneMounted.set(true);
       await this.waitForSceneElement();
       await this.waitForSceneReady();
+      this.registerAudioUnlockHooks();
       this.bindTargetEvents();
       this.runtimeReady.set(true);
-
       const cameraFeedVisible = await this.waitForCameraFeed(4500);
       if (!cameraFeedVisible && this.canUseDirectionFallback()) {
         this.cameraDirectionFallbackUsed = true;
@@ -217,24 +226,30 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
 
   private bindTargetEvents(): void {
     const target = this.document.getElementById('kuckuck-target');
+    const scene = this.document.getElementById('x8-scene');
     if (!target) {
       this.error.set('8th-Wall-Szene wurde geladen, aber das Target-Element fehlt.');
       return;
     }
 
-    const audio = this.document.getElementById('kuckuck-audio') as HTMLAudioElement | null;
+    if (!scene) {
+      this.error.set('8th-Wall-Szene konnte nicht gefunden werden.');
+      return;
+    }
 
-    const onFound = () => {
+    const audio = this.document.getElementById('kuckuck-audio') as HTMLAudioElement | null;
+    if (!audio) {
+      console.warn('[8th-wall] Audio element #kuckuck-audio not found.');
+    }
+
+    const onFound = (event: Event) => {
+      console.info('[8th-wall] Target found event:', event.type);
       this.targetDetected.set(true);
-      if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch((err) => {
-          console.warn('[8th-wall] Audio play blocked:', err);
-        });
-      }
+      this.playTargetAudio(audio, event.type);
     };
 
-    const onLost = () => {
+    const onLost = (event: Event) => {
+      console.info('[8th-wall] Target lost event:', event.type);
       this.targetDetected.set(false);
       audio?.pause();
     };
@@ -243,19 +258,144 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     const foundEvents = ['xrextrasnamedimagefound', 'xrimagefound', 'targetFound', 'markerFound'];
     const lostEvents = ['xrextrasnamedimagelost', 'xrimagelost', 'targetLost', 'markerLost'];
 
-    foundEvents.forEach((eventName) => {
-      target.addEventListener(eventName, onFound as EventListener);
+    const addListeners = (el: Element) => {
+      foundEvents.forEach((eventName) => {
+        el.addEventListener(eventName, onFound as EventListener);
+      });
+      lostEvents.forEach((eventName) => {
+        el.addEventListener(eventName, onLost as EventListener);
+      });
+    };
+
+    const removeListeners = (el: Element) => {
+      foundEvents.forEach((eventName) => {
+        el.removeEventListener(eventName, onFound as EventListener);
+      });
+      lostEvents.forEach((eventName) => {
+        el.removeEventListener(eventName, onLost as EventListener);
+      });
+    };
+
+    addListeners(target);
+    addListeners(scene);
+    const stopVisibilityMonitor = this.startTargetVisibilityMonitor(target as HTMLElement, onFound, onLost);
+
+    const onCanPlayThrough = () => {
+      console.info('[8th-wall] Audio ready for playback.');
+    };
+
+    const onAudioError = () => {
+      const mediaError = audio?.error;
+      console.warn('[8th-wall] Audio element error:', mediaError ? mediaError.message : 'unknown error');
+    };
+
+    audio?.addEventListener('canplaythrough', onCanPlayThrough as EventListener);
+    audio?.addEventListener('error', onAudioError as EventListener);
+
+    this.teardownFns.push(() => {
+      removeListeners(target);
+      removeListeners(scene);
+      stopVisibilityMonitor();
+      audio?.removeEventListener('canplaythrough', onCanPlayThrough as EventListener);
+      audio?.removeEventListener('error', onAudioError as EventListener);
     });
-    lostEvents.forEach((eventName) => {
-      target.addEventListener(eventName, onLost as EventListener);
+  }
+
+  private startTargetVisibilityMonitor(
+    target: HTMLElement,
+    onFound: (event: Event) => void,
+    onLost: (event: Event) => void,
+  ): () => void {
+    let wasVisible = this.isTargetCurrentlyVisible(target);
+
+    const intervalId = this.document.defaultView?.setInterval(() => {
+      const isVisible = this.isTargetCurrentlyVisible(target);
+      if (isVisible === wasVisible) {
+        return;
+      }
+
+      wasVisible = isVisible;
+      if (isVisible) {
+        onFound(new CustomEvent('targetVisibleStateFound'));
+      } else {
+        onLost(new CustomEvent('targetVisibleStateLost'));
+      }
+    }, 120);
+
+    return () => {
+      if (typeof intervalId === 'number') {
+        this.document.defaultView?.clearInterval(intervalId);
+      }
+    };
+  }
+
+  private isTargetCurrentlyVisible(target: HTMLElement): boolean {
+    const targetEntity = target as HTMLElement & {
+      object3D?: { visible?: boolean };
+      getAttribute: (name: string) => unknown;
+    };
+
+    const object3DVisible = targetEntity.object3D?.visible;
+    if (typeof object3DVisible === 'boolean') {
+      return object3DVisible;
+    }
+
+    const visibleAttr = targetEntity.getAttribute('visible');
+    return visibleAttr !== 'false';
+  }
+
+  private playTargetAudio(audio: HTMLAudioElement | null, triggerEvent: string): void {
+    if (!audio) {
+      return;
+    }
+
+    audio.muted = false;
+    audio.volume = 1;
+
+    if (!audio.paused) {
+      console.info('[8th-wall] Audio already playing:', {
+        triggerEvent,
+        currentTime: audio.currentTime,
+      });
+      return;
+    }
+
+    audio.play()
+      .then(() => {
+        console.info('[8th-wall] Audio playback started:', {
+          triggerEvent,
+          currentTime: audio.currentTime,
+          loop: audio.loop,
+        });
+      })
+      .catch((err) => {
+        console.warn('[8th-wall] Audio play blocked:', {
+          triggerEvent,
+          error: err,
+        });
+      });
+  }
+
+  private registerAudioUnlockHooks(): void {
+    const view = this.document.defaultView;
+    if (!view || this.audioPrimed) {
+      return;
+    }
+
+    const unlock = () => {
+      this.unlockAudio().catch(() => {
+        // Intentionally ignore; manual button remains available.
+      });
+    };
+
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
+    events.forEach((eventName) => {
+      view.addEventListener(eventName, unlock, { once: true, passive: true });
     });
 
     this.teardownFns.push(() => {
-      foundEvents.forEach((eventName) => {
-        target.removeEventListener(eventName, onFound as EventListener);
-      });
-      lostEvents.forEach((eventName) => {
-        target.removeEventListener(eventName, onLost as EventListener);
+      events.forEach((eventName) => {
+        view.removeEventListener(eventName, unlock);
       });
     });
   }
@@ -608,27 +748,10 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
 
     while (Date.now() - startedAt < timeoutMs) {
       const scene = this.document.getElementById('x8-scene');
-      const canvas = scene?.querySelector('canvas') as HTMLCanvasElement | null;
 
-      if (this.xrCameraFeedObserved && canvas) {
-        const canvasHasVisiblePixels = this.canvasHasVisiblePixels(canvas);
-        if (canvasHasVisiblePixels) {
-          this.xrCanvasVisibleObserved = true;
-          this.logXrDiagnostic('canvas-visible', 'XR canvas contains visible pixels.');
-          return true;
-        }
-
-        this.logXrDiagnostic(
-          'canvas-black-with-texture',
-          'XR pipeline reported a camera texture, but the rendered scene canvas stayed black.',
-        );
-      }
-
-      if (this.xrCameraFeedObserved && !canvas) {
-        this.logXrDiagnostic(
-          'texture-no-canvas',
-          'XR pipeline reported a camera texture, but no scene canvas was found yet.',
-        );
+      if (this.xrCameraFeedObserved) {
+        this.xrCanvasVisibleObserved = true;
+        return true;
       }
 
       if (this.xrCanvasVisibleObserved) {
@@ -666,54 +789,18 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: facingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
 
       stream.getTracks().forEach((track) => track.stop());
-    } catch (err) {
-      const errorName = err instanceof DOMException ? err.name : '';
-      if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
-        throw new Error(
-          'Kamerazugriff wurde nicht erlaubt. Bitte Kamera freigeben und erneut versuchen.',
-        );
-      }
-
-      if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
-        throw new Error('Es wurde keine Kamera gefunden. Bitte Webcam/Kamera pruefen.');
-      }
-
-      throw err;
+    } catch {
+      // Fallback for browsers that reject facingMode constraints.
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream.getTracks().forEach((track) => track.stop());
     }
-  }
-
-  private canvasHasVisiblePixels(canvas: HTMLCanvasElement): boolean {
-    if (canvas.width === 0 || canvas.height === 0) {
-      return false;
-    }
-
-    const sampleCanvas = this.document.createElement('canvas');
-    sampleCanvas.width = 64;
-    sampleCanvas.height = 48;
-    const context = sampleCanvas.getContext('2d', { willReadFrequently: true });
-    if (!context) {
-      return false;
-    }
-
-    try {
-      context.drawImage(canvas, 0, 0, sampleCanvas.width, sampleCanvas.height);
-      const pixels = context.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
-
-      for (let i = 0; i < pixels.length; i += 32) {
-        if (pixels[i] > 10 || pixels[i + 1] > 10 || pixels[i + 2] > 10) {
-          return true;
-        }
-      }
-    } catch (err) {
-      this.logXrDiagnostic('canvas-sample-failed', `XR canvas sampling failed: ${String(err)}`);
-    }
-
-    return false;
   }
 
   private resetXrDiagnostics(): void {
