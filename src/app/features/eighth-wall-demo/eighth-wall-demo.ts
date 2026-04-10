@@ -41,6 +41,7 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
   protected readonly error = signal<string | null>(null);
   protected readonly showBrowserWarning = signal(false);
   protected readonly targetDetected = signal(false);
+  protected readonly overlayConfirmed = signal(false);
   protected readonly runtimeReady = signal(false);
   protected readonly sceneMounted = signal(false);
   protected readonly xrwebConfig = signal('disableWorldTracking: true');
@@ -48,7 +49,8 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
   protected readonly directCameraFallbackActive = signal(false);
   protected readonly directCameraFallbackReason = signal<string | null>(null);
 
-  protected readonly overlayUrl = this.resolveAssetUrl('overlays/info-overlay.svg');
+  protected readonly overlayFrameRedUrl = this.resolveAssetUrl('overlays/target-frame-red.svg');
+  protected readonly overlayFrameGreenCheckUrl = this.resolveAssetUrl('overlays/target-frame-green-check.svg');
   protected readonly audioUrl = this.resolveAssetUrl('sounds/kuckuck.mp3');
 
   constructor() {
@@ -100,6 +102,7 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.targetDetected.set(false);
+    this.overlayConfirmed.set(false);
     this.runtimeReady.set(false);
     this.sceneMounted.set(false);
     this.directCameraFallbackReason.set(null);
@@ -251,6 +254,7 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     const onLost = (event: Event) => {
       console.info('[8th-wall] Target lost event:', event.type);
       this.targetDetected.set(false);
+      this.overlayConfirmed.set(false);
       audio?.pause();
     };
 
@@ -279,6 +283,7 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     addListeners(target);
     addListeners(scene);
     const stopVisibilityMonitor = this.startTargetVisibilityMonitor(target as HTMLElement, onFound, onLost);
+    const stopOverlayInteraction = this.bindOverlayInteraction(audio);
 
     const onCanPlayThrough = () => {
       console.info('[8th-wall] Audio ready for playback.');
@@ -296,9 +301,41 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
       removeListeners(target);
       removeListeners(scene);
       stopVisibilityMonitor();
+      stopOverlayInteraction();
       audio?.removeEventListener('canplaythrough', onCanPlayThrough as EventListener);
       audio?.removeEventListener('error', onAudioError as EventListener);
     });
+  }
+
+  private bindOverlayInteraction(audio: HTMLAudioElement | null): () => void {
+    const overlay = this.document.getElementById('kuckuck-overlay');
+    if (!overlay) {
+      console.warn('[8th-wall] Overlay element #kuckuck-overlay not found.');
+      return () => {};
+    }
+
+    const onOverlayActivate = (event: Event) => {
+      console.info('[8th-wall] Overlay activated:', event.type);
+      this.overlayConfirmed.set(true);
+      this.unlockAudio().catch(() => {
+        // Manual button remains available as fallback.
+      });
+
+      if (this.targetDetected()) {
+        this.playTargetAudio(audio, `overlay-${event.type}`);
+      }
+    };
+
+    const events: Array<keyof GlobalEventHandlersEventMap> = ['click', 'pointerdown', 'touchstart'];
+    events.forEach((eventName) => {
+      overlay.addEventListener(eventName, onOverlayActivate as EventListener);
+    });
+
+    return () => {
+      events.forEach((eventName) => {
+        overlay.removeEventListener(eventName, onOverlayActivate as EventListener);
+      });
+    };
   }
 
   private startTargetVisibilityMonitor(
@@ -941,14 +978,6 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     video.autoplay = true;
     video.srcObject = stream;
 
-    const canvas = this.document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 48;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) {
-      return true;
-    }
-
     const loaded = await new Promise<boolean>((resolve) => {
       const onLoadedData = () => {
         cleanup();
@@ -977,17 +1006,15 @@ export class EighthWallDemoComponent implements AfterViewInit, OnDestroy {
     }
 
     const startedAt = Date.now();
+    let lastTime = video.currentTime;
     while (Date.now() - startedAt < timeoutMs) {
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-
-        for (let i = 0; i < pixels.length; i += 32) {
-          if (pixels[i] > 10 || pixels[i + 1] > 10 || pixels[i + 2] > 10) {
-            video.srcObject = null;
-            return true;
-          }
+      if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+        if (video.currentTime > lastTime || !video.paused) {
+          video.srcObject = null;
+          return true;
         }
+
+        lastTime = video.currentTime;
       }
 
       await this.sleep(100);

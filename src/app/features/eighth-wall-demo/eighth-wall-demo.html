@@ -49,12 +49,27 @@
   renderer="colorManagement: true"
 >
   <a-assets>
-    <img id="overlay-img" [attr.src]="overlayUrl" crossorigin="anonymous" />
+    <img id="overlay-red" [attr.src]="overlayFrameRedUrl" crossorigin="anonymous" />
+    <img id="overlay-green" [attr.src]="overlayFrameGreenCheckUrl" crossorigin="anonymous" />
   </a-assets>
 
   <xrextras-named-image-target id="kuckuck-target" name="kuckuck">
     <a-image
-      src="#overlay-img"
+      id="kuckuck-overlay"
+      class="kuckuck-overlay-clickable"
+      src="#overlay-red"
+      [attr.visible]="!overlayConfirmed()"
+      rotation="0 0 0"
+      position="0 0 0"
+      width="1.4"
+      height="1.4"
+      opacity="0.95"
+    ></a-image>
+
+    <a-image
+      class="kuckuck-overlay-clickable"
+      src="#overlay-green"
+      [attr.visible]="overlayConfirmed()"
       rotation="0 0 0"
       position="0 0 0"
       width="1.4"
@@ -63,6 +78,10 @@
     ></a-image>
   </xrextras-named-image-target>
 
-  <a-camera position="0 0 0"></a-camera>
+  <a-camera
+    position="0 0 0"
+    cursor="rayOrigin: mouse; fuse: false"
+    raycaster="objects: .kuckuck-overlay-clickable"
+  ></a-camera>
 </a-scene>
 }
