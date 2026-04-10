@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "postinstall": "node sync-xrextras.js",
+    "sync:8thwall-runtime": "node sync-8thwall-runtime.js",
+    "sync:xrextras": "node sync-xrextras.js",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "deploy:ghpages": "node deploy-ghpages.js"
   },
   "prettier": {
@@ -24,7 +29,7 @@
   "private": true,
   "packageManager": "npm@11.3.0",
   "dependencies": {
-    "@8thwall/xrextras": "^1.0.0-alpha.0",
+    "@8thwall/xrextras": "^1.0.0",
     "@angular/common": "^21.0.0",
     "@angular/compiler": "^21.0.0",
     "@angular/core": "^21.0.0",
@@ -38,6 +43,7 @@
     "@angular/build": "^21.0.4",
     "@angular/cli": "^21.0.4",
     "@angular/compiler-cli": "^21.0.0",
+    "@playwright/test": "^1.59.1",
     "angular-cli-ghpages": "^1.0.7",
     "jsdom": "^27.1.0",
     "typescript": "~5.9.2",

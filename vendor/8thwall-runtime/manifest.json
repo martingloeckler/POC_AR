@@ -1,0 +1,13 @@
+{
+  "notes": [
+    "Place the official 8th Wall engine bundle files listed in engineFiles into this folder.",
+    "These files are copied into public/8thwall by npm run sync:8thwall-runtime.",
+    "xrextras.js is managed separately via sync-xrextras.js from the npm package."
+  ],
+  "engineFiles": [
+    "xr.js",
+    "8frame.min.js",
+    "xr-slam.js",
+    "xr-face.js"
+  ]
+}

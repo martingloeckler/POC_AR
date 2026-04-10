@@ -21,6 +21,10 @@ import { CameraService } from '../../shared/services/camera.service';
 export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
   private readonly cameraService = inject(CameraService);
   private readonly document = inject(DOCUMENT);
+  private readonly runtimeScripts = [
+    'https://aframe.io/releases/1.4.2/aframe.min.js',
+    'https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar-nft.js',
+  ];
 
   private originalGetUserMedia: typeof navigator.mediaDevices.getUserMedia | null = null;
   private matrixCheckInterval: number | null = null;
@@ -44,6 +48,10 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
     }
 
     try {
+      for (const scriptSrc of this.runtimeScripts) {
+        await this.loadScriptOnce(scriptSrc);
+      }
+
       // List all cameras (for manual picker)
       const devices = await this.cameraService.getVideoDevices();
       this.videoDevices.set(devices);
@@ -112,6 +120,24 @@ export class ImageTargetDemoComponent implements AfterViewInit, OnDestroy {
 
     this.destroyScene();
     this.restoreGetUserMedia();
+  }
+
+  private loadScriptOnce(src: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const existing = this.document.querySelector(`script[data-runtime-src="${src}"]`);
+      if (existing) {
+        resolve();
+        return;
+      }
+
+      const script = this.document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.dataset['runtimeSrc'] = src;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Script load failed: ${src}`));
+      this.document.head.appendChild(script);
+    });
   }
 
   private waitForNFTElement(): Promise<void> {

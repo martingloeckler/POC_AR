@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Redirecting...</title>
+  <script>
+    (function () {
+      var path = window.location.pathname;
+      var marker = '/image-target-demo-8thwall';
+      var base = path.indexOf(marker) >= 0 ? path.substring(0, path.indexOf(marker)) : '';
+      window.location.replace(base + '/#/image-target-demo-8thwall');
+    })();
+  </script>
+</head>
+<body></body>
+</html>
