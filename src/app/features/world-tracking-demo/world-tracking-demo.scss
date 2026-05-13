@@ -1,0 +1,125 @@
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.x8-runtime-root {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1;
+  width: 100vw;
+  height: 100vh;
+
+  canvas,
+  video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+  }
+}
+
+.loading-overlay,
+.error-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 1.1rem;
+  z-index: 1000;
+
+  button {
+    margin-top: 1rem;
+    padding: 0.6rem 1.4rem;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+  }
+}
+
+.browser-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.8rem 1rem;
+  background: #ff9800;
+  color: #000;
+  text-align: center;
+  z-index: 1001;
+}
+
+.status-chip {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1002;
+  background: rgba(20, 20, 20, 0.8);
+  color: #fff;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border: 1px solid #666;
+  white-space: nowrap;
+
+  &.active {
+    border-color: #2e7d32;
+    background: rgba(18, 80, 22, 0.85);
+  }
+}
+
+.hint-chip {
+  position: fixed;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1002;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid #aaa;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.direct-camera-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  background: #000;
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.direct-camera-fallback-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 4.25rem;
+  transform: translateX(-50%);
+  z-index: 1003;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #777;
+  font-size: 0.8rem;
+}

@@ -1,0 +1,44 @@
+@if (showBrowserWarning()) {
+  <div class="browser-warning">
+    ⚠️ Samsung Internet ist bei Web-AR haeufig instabil. Bitte verwende nach Moeglichkeit
+    <strong>Google Chrome</strong>.
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading-overlay">
+    <p>World-Tracking wird initialisiert…</p>
+  </div>
+}
+
+@if (error(); as err) {
+  <div class="error-overlay">
+    <p>{{ err }}</p>
+    <button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+}
+
+@if (runtimeReady()) {
+  <div class="status-chip" [class.active]="worldTrackingActive()">
+    @if (worldTrackingActive()) {
+      @if (animating()) {
+        Reh tanzt 🎉
+      } @else {
+        World-Tracking aktiv – Reh antippen zum Starten
+      }
+    } @else {
+      Finde das Reh… 🔍
+    }
+  </div>
+
+  @if (modelVisible() && !animating()) {
+    <div class="hint-chip">Tippe auf das Reh, um die Animation zu starten</div>
+  }
+
+  @if (showRehInfo()) {
+    <div class="reh-info">
+      <strong>Wusstest du schon?</strong> Rehe sind in Europa weit verbreitet und sehr anpassungsfähig. Sie leben meist in Wäldern und ernähren sich von Gräsern, Kräutern und jungen Trieben.
+      <button type="button" (click)="hideRehInfo()">Schließen</button>
+    </div>
+  }
+}

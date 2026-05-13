@@ -31,6 +31,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'world-tracking-demo',
+    loadComponent: () =>
+      import('./features/world-tracking-demo/world-tracking-demo').then(
+        m => m.WorldTrackingDemoComponent,
+      ),
+  },
+  {
     path: '8th-wall-demo',
     pathMatch: 'full',
     redirectTo: 'image-target-demo-8thwall',

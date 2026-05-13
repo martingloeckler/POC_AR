@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { CameraService } from '../../shared/services/camera.service';
 
 @Component({
@@ -44,6 +45,8 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
   private celebrationMixer: any = null;
   private celebrationLastTickMs: number | null = null;
   private celebrationTickId: number | null = null;
+  private celebrationFinishTimeoutId: number | null = null;
+  private meshoptDecoderPatched = false;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -58,7 +61,7 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
   protected readonly directCameraFallbackActive = signal(false);
   protected readonly directCameraFallbackReason = signal<string | null>(null);
 
-  protected readonly wichtelModelUrl = this.resolveAssetUrl('models/MushroomJubel.glb');
+  protected readonly wichtelModelUrl = this.resolveAssetUrl('models/Mushroom2.opt.glb');
   protected readonly wichtelAudioUrl = this.resolveAssetUrl('sounds/WichtelTest.mp3');
 
   constructor() {
@@ -140,6 +143,7 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
 
       this.instrumentXrRun(xr8);
       this.ensureAFrameXrComponentsRegistered(xr8);
+      this.ensureMeshoptDecoderConfigured();
       this.registerCameraFeedMonitor(xr8);
       await this.ensureSlamControllerReady(xr8);
       const xrController = this.getXrController(xr8);
@@ -319,11 +323,22 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
       const modelEvent = event as CustomEvent<{ model?: { animations?: any[] } }>;
       this.celebrationModelLoaded = true;
       this.celebrationAnimationHost = modelEvent.detail?.model ?? modelEntity?.getObject3D?.('mesh') ?? null;
+      this.normalizeCelebrationModelTransform();
       this.celebrationAnimations = this.celebrationAnimationHost?.animations ?? [];
+      this.logXrDiagnostic('model-loaded', `Wichtel model loaded. animationClips=${this.celebrationAnimations.length}`);
+      if (this.celebrationAnimations.length === 0) {
+        this.logXrDiagnostic('model-no-animations', 'Loaded GLB contains no animation clips.');
+      }
 
       if (this.celebrationPendingStart) {
         this.startCelebrationPlayback(audio, rootEntity);
       }
+    };
+
+    const onModelError = () => {
+      this.error.set(
+        'Wichtel-Modell konnte nicht geladen werden. Pruefe models/Mushroom2.opt.glb und den Meshopt-Decoder.',
+      );
     };
 
     const onAudioEnded = () => {
@@ -331,10 +346,12 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
     };
 
     modelEntity?.addEventListener('model-loaded', onModelLoaded as EventListener);
+    modelEntity?.addEventListener('model-error', onModelError as EventListener);
     audio?.addEventListener('ended', onAudioEnded as EventListener);
 
     this.teardownFns.push(() => {
       modelEntity?.removeEventListener('model-loaded', onModelLoaded as EventListener);
+      modelEntity?.removeEventListener('model-error', onModelError as EventListener);
       audio?.removeEventListener('ended', onAudioEnded as EventListener);
     });
   }
@@ -381,15 +398,27 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.unlockAudio().catch(() => {
-      // Manual button remains available as fallback.
-    });
-
     audio.currentTime = 0;
     audio.play().catch((err) => {
       console.warn('[8th-wall] Celebration audio play blocked:', err);
-      this.finishCelebration(rootEntity);
+      this.scheduleCelebrationFinishFallback(rootEntity, 3200);
     });
+  }
+
+  private scheduleCelebrationFinishFallback(
+    rootEntity: ({ setAttribute: (name: string, value: unknown) => void } & HTMLElement) | null,
+    delayMs: number,
+  ): void {
+    if (typeof this.celebrationFinishTimeoutId === 'number') {
+      this.document.defaultView?.clearTimeout(this.celebrationFinishTimeoutId);
+      this.celebrationFinishTimeoutId = null;
+    }
+
+    this.celebrationFinishTimeoutId =
+      this.document.defaultView?.setTimeout(() => {
+        this.celebrationFinishTimeoutId = null;
+        this.finishCelebration(rootEntity);
+      }, delayMs) ?? null;
   }
 
   private playCelebrationAnimation(): void {
@@ -432,6 +461,52 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
     this.celebrationTickId = this.document.defaultView?.requestAnimationFrame(tick) ?? null;
   }
 
+  private normalizeCelebrationModelTransform(): void {
+    const threeWindow = window as unknown as {
+      THREE?: {
+        Box3: new () => {
+          setFromObject: (object: unknown) => unknown;
+          getSize: (target: { x: number; y: number; z: number }) => unknown;
+          getCenter: (target: { x: number; y: number; z: number }) => unknown;
+          min: { y: number };
+        };
+        Vector3: new (x?: number, y?: number, z?: number) => { x: number; y: number; z: number };
+      };
+    };
+
+    const modelRoot = this.celebrationAnimationHost;
+    if (!threeWindow.THREE || !modelRoot?.scale || !modelRoot?.position) {
+      return;
+    }
+
+    const box = new threeWindow.THREE.Box3();
+    box.setFromObject(modelRoot);
+    const size = new threeWindow.THREE.Vector3();
+    box.getSize(size);
+
+    const maxAxis = Math.max(size.x || 0, size.y || 0, size.z || 0);
+    if (!Number.isFinite(maxAxis) || maxAxis <= 0) {
+      return;
+    }
+
+    // Keep the celebratory character around human scale even if exported in huge units.
+    const targetHeightMeters = 0.7;
+    const scaleFactor = targetHeightMeters / maxAxis;
+    modelRoot.scale.setScalar?.(scaleFactor);
+
+    box.setFromObject(modelRoot);
+    const center = new threeWindow.THREE.Vector3();
+    box.getCenter(center);
+    modelRoot.position.x -= center.x;
+    modelRoot.position.z -= center.z;
+    modelRoot.position.y -= box.min.y;
+
+    this.logXrDiagnostic(
+      'model-normalized',
+      `Normalized model transform. maxAxis=${maxAxis.toFixed(2)} scaleFactor=${scaleFactor.toFixed(4)}`,
+    );
+  }
+
   private stopCelebrationAnimationTicker(): void {
     if (typeof this.celebrationTickId === 'number') {
       this.document.defaultView?.cancelAnimationFrame(this.celebrationTickId);
@@ -449,6 +524,11 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
   private finishCelebration(
     rootEntity: ({ setAttribute: (name: string, value: unknown) => void } & HTMLElement) | null,
   ): void {
+    if (typeof this.celebrationFinishTimeoutId === 'number') {
+      this.document.defaultView?.clearTimeout(this.celebrationFinishTimeoutId);
+      this.celebrationFinishTimeoutId = null;
+    }
+
     this.stopCelebrationAnimationTicker();
     this.celebrationRunning = false;
     this.celebrationPendingStart = false;
@@ -821,6 +901,59 @@ export class WichtelAnimatedDemoComponent implements AfterViewInit, OnDestroy {
 
     globalWindow.XRExtras?.AFrame?.registerXrExtrasComponents?.();
     this.logXrDiagnostic('xrextras-components', 'XR Extras A-Frame components ensured.');
+  }
+
+  private ensureMeshoptDecoderConfigured(): void {
+    if (this.meshoptDecoderPatched) {
+      return;
+    }
+
+    const globalWindow = window as unknown as {
+      MeshoptDecoder?: unknown;
+      THREE?: {
+        GLTFLoader?: {
+          prototype?: {
+            load?: (...args: any[]) => unknown;
+            setMeshoptDecoder?: (decoder: unknown) => unknown;
+          };
+        };
+      };
+    };
+
+    globalWindow.MeshoptDecoder = MeshoptDecoder;
+
+    const gltfLoaderPrototype = globalWindow.THREE?.GLTFLoader?.prototype;
+    if (!gltfLoaderPrototype?.load || !gltfLoaderPrototype?.setMeshoptDecoder) {
+      this.logXrDiagnostic(
+        'meshopt-loader-missing',
+        'THREE.GLTFLoader not available for meshopt patching yet.',
+      );
+      return;
+    }
+
+    const patchedFlag = '__pocMeshoptPatched';
+    if ((gltfLoaderPrototype as Record<string, unknown>)[patchedFlag]) {
+      this.meshoptDecoderPatched = true;
+      return;
+    }
+
+    const originalLoad = gltfLoaderPrototype.load;
+    gltfLoaderPrototype.load = function patchedLoad(this: any, ...args: any[]) {
+      if (!this.__pocMeshoptSet && typeof this.setMeshoptDecoder === 'function') {
+        try {
+          this.setMeshoptDecoder(globalWindow.MeshoptDecoder);
+          this.__pocMeshoptSet = true;
+        } catch (err) {
+          console.warn('[8th-wall] Failed to attach MeshoptDecoder to GLTFLoader:', err);
+        }
+      }
+
+      return originalLoad.apply(this, args);
+    };
+
+    (gltfLoaderPrototype as Record<string, unknown>)[patchedFlag] = true;
+    this.meshoptDecoderPatched = true;
+    this.logXrDiagnostic('meshopt-configured', 'Meshopt decoder patched into THREE.GLTFLoader.');
   }
 
   private async ensureSlamControllerReady(xr8: any): Promise<void> {
